@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Routine Reminder</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+  body {
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  header {
+    text-align: center;
+    color: #fff;
+    margin-bottom: 25px;
+  }
+  header h1 { font-size: 2rem; margin-bottom: 5px; }
+  header p { opacity: 0.85; font-size: 0.95rem; }
+  .clock {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ffd700;
+    margin-top: 8px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+  }
+  .card h2 {
+    font-size: 1.2rem;
+    color: #1e3c72;
+    margin-bottom: 15px;
+    border-left: 5px solid #2a5298;
+    padding-left: 10px;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  input, select, button {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 0.95rem;
+    outline: none;
+  }
+  input:focus, select:focus { border-color: #2a5298; }
+  input[type="text"] { flex: 2; min-width: 150px; }
+  input[type="time"] { flex: 1; min-width: 110px; }
+  select { flex: 1; min-width: 110px; }
+  button {
+    background: #2a5298;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+  }
+  button:hover { background: #1e3c72; }
+  .btn-clear { background: #d9534f; }
+  .btn-clear:hover { background: #b52b27; }
+
+  ul { list-style: none; }
+  li.task-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    background: #f4f7fb;
+    border-left: 5px solid #2a5298;
+    transition: 0.3s;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  li.task-item.done {
+    background: #e8f5e9;
+    border-left-color: #4caf50;
+    text-decoration: line-through;
+    opacity: 0.7;
+  }
+  .task-info { flex: 1; min-width: 180px; }
+  .task-info .name { font-weight: 600; font-size: 1rem; }
+  .task-info .meta { font-size: 0.82rem; color: #666; margin-top: 3px; }
+  .badge {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 20px;
+    color: #fff;
+    margin-left: 5px;
+  }
+  .badge-high { background: #d9534f; }
+  .badge-medium { background: #f0ad4e; }
+  .badge-low { background: #5cb85c; }
+  .task-actions { display: flex; gap: 6px; }
+  .task-actions button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+  }
+  .btn-done { background: #4caf50; }
+  .btn-done:hover { background: #388e3c; }
+  .btn-del { background: #d9534f; }
+  .btn-del:hover { background: #b52b27; }
+
+  .empty { text-align: center; color: #888; padding: 15px; font-style: italic; }
+
+  /* Reminder popup */
+  .reminder-popup {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #fff;
+    border-left: 6px solid #ff9800;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    z-index: 9999;
+    max-width: 320px;
+    animation: slideIn 0.3s ease;
+  }
+  .reminder-popup h3 { color: #ff9800; font-size: 1rem; margin-bottom: 5px; }
+  .reminder-popup p { font-size: 0.9rem; }
+  @keyframes slideIn {
+    from { transform: translateX(120%); }
+    to { transform: translateX(0); }
+  }
+
+  .stats {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .stat-box {
+    flex: 1;
+    min-width: 100px;
+    background: #f4f7fb;
+    padding: 12px;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .stat-box .num { font-size: 1.5rem; font-weight: bold; color: #2a5298; }
+  .stat-box .label { font-size: 0.8rem; color: #666; }
+
+  @media (max-width: 600px) {
+    .form-row > * { flex: 1 1 100%; }
+    .task-item { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📋 Daily Routine Reminder</h1>
+    <p>Aapki daily routine ka smart reminder</p>
+    <div class="clock" id="clock">--:--:--</div>
+  </header>
+
+  <!-- Task add form -->
+  <div class="card">
+    <h2>➕ Naya Task Add Karein</h2>
+    <div class="form-row">
+      <input type="text" id="taskName" placeholder="Task ka naam (e.g. Exercise, Namaz, Study)" />
+      <input type="time" id="taskTime" />
+      <select id="taskPriority">
+        <option value="High">High</option>
+        <option value="Medium" selected>Medium</option>
+        <option value="Low">Low</option>
+      </select>
+      <button onclick="addTask()">Add Task</button>
+    </div>
+  </div>
+
+  <!-- Task list -->
+  <div class="card">
+    <h2>📌 Aaj ke Tasks</h2>
+    <ul id="taskList"></ul>
+    <div id="emptyMsg" class="empty">Abhi koi task nahi hai. Upar se add karein.</div>
+
+    <div class="stats">
+      <div class="stat-box">
+        <div class="num" id="totalCount">0</div>
+        <div class="label">Total Tasks</div>
+      </div>
+      <div class="stat-box">
+        <div class="num" id="doneCount">0</div>
+        <div class="label">Completed</div>
+      </div>
+      <div class="stat-box">
+        <div class="num" id="pendingCount">0</div>
+        <div class="label">Pending</div>
+      </div>
+    </div>
+    <br>
+    <button class="btn-clear" onclick="clearAll()">🗑️ Sab Tasks Clear Karein</button>
+  </div>
+</div>
+
+<script>
+  // ===== Data storage =====
+  let tasks = JSON.parse(localStorage.getItem('routineTasks')) || [];
+  let notified = JSON.parse(localStorage.getItem('routineNotified')) || {};
+  let lastNotifiedDate = localStorage.getItem('lastNotifiedDate') || '';
+
+  // ===== Live Clock =====
+  function updateClock() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `🕐 ${hh}:${mm}:${ss}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ===== Save data =====
+  function saveTasks() {
+    localStorage.setItem('routineTasks', JSON.stringify(tasks));
+  }
+  function saveNotified() {
+    localStorage.setItem('routineNotified', JSON.stringify(notified));
+  }
+
+  // ===== Add task =====
+  function addTask() {
+    const name = document.getElementById('taskName').value.trim();
+    const time = document.getElementById('taskTime').value;
+    const priority = document.getElementById('taskPriority').value;
+
+    if (!name) { alert('Task ka naam likhein!'); return; }
+    if (!time) { alert('Time select karein!'); return; }
+
+    tasks.push({
+      id: Date.now(),
+      name: name,
+      time: time,
+      priority: priority,
+      done: false
+    });
+    saveTasks();
+    renderTasks();
+
+    document.getElementById('taskName').value = '';
+    document.getElementById('taskTime').value = '';
+  }
+
+  // ===== Render tasks =====
+  function renderTasks() {
+    const list = document.getElementById('taskList');
+    list.innerHTML = '';
+
+    // Sort by time
+    const sorted = [...tasks].sort((a, b) => a.time.localeCompare(b.time));
+
+    if (sorted.length === 0) {
+      document.getElementById('emptyMsg').style.display = 'block';
+    } else {
+      document.getElementById('emptyMsg').style.display = 'none';
+    }
+
+    sorted.forEach(task => {
+      const li = document.createElement('li');
+      li.className = 'task-item' + (task.done ? ' done' : '');
+      li.innerHTML = `
+        <div class="task-info">
+          <div class="name">${escapeHtml(task.name)}</div>
+          <div class="meta">
+            ⏰ ${task.time}
+            <span class="badge badge-${task.priority.toLowerCase()}">${task.priority}</span>
+            ${task.done ? ' ✅ Completed' : ''}
+          </div>
+        </div>
+        <div class="task-actions">
+          <button class="btn-done" onclick="toggleDone(${task.id})">
+            ${task.done ? '↩️ Undo' : '✔️ Done'}
+          </button>
+          <button class="btn-del" onclick="deleteTask(${task.id})">✖ Delete</button>
+        </div>
+      `;
+      list.appendChild(li);
+    });
+
+    updateStats();
+  }
+
+  // ===== Escape HTML (security) =====
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // ===== Toggle done =====
+  function toggleDone(id) {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      task.done = !task.done;
+      saveTasks();
+      renderTasks();
+    }
+  }
+
+  // ===== Delete task =====
+  function deleteTask(id) {
+    if (!confirm('Kya aap ye task delete karna chahte hain?')) return;
+    tasks = tasks.filter(t => t.id !== id);
+    saveTasks();
+    renderTasks();
+  }
+
+  // ===== Clear all =====
+  function clearAll() {
+    if (!confirm('Sab tasks clear ho jayenge. Confirm?')) return;
+    tasks = [];
+    notified = {};
+    saveTasks();
+    saveNotified();
+    renderTasks();
+  }
+
+  // ===== Stats =====
+  function updateStats() {
+    const total = tasks.length;
+    const done = tasks.filter(t => t.done).length;
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('doneCount').textContent = done;
+    document.getElementById('pendingCount').textContent = total - done;
+  }
+
+  // ===== Reminder check (har 10 second) =====
+  function checkReminders() {
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0];
+    const currentTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+    // Reset notifications on new day
+    if (lastNotifiedDate !== currentDate) {
+      notified = {};
+      saveNotified();
+      lastNotifiedDate = currentDate;
+      localStorage.setItem('lastNotifiedDate', currentDate);
+    }
+
+    tasks.forEach(task => {
+      if (task.done) return;
+      if (task.time === currentTime && !notified[task.id]) {
+        showReminder(task);
+        notified[task.id] = true;
+        saveNotified();
+      }
+    });
+  }
+
+  // ===== Show popup + sound =====
+  function showReminder(task) {
+    // Popup
+    const popup = document.createElement('div');
+    popup.className = 'reminder-popup';
+    popup.innerHTML = `
+      <h3>🔔 Reminder!</h3>
+      <p><strong>${escapeHtml(task.name)}</strong></p>
+      <p>⏰ Time: ${task.time} | Priority: ${task.priority}</p>
+    `;
+    document.body.appendChild(popup);
+    setTimeout(() => popup.remove(), 8000);
+
+    // Browser notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('⏰ Routine Reminder', {
+        body: `${task.name} — ${task.time}`,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">⏰</text></svg>'
+      });
+    }
+
+    // Beep sound using Web Audio API
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.6);
+    } catch (e) { /* audio not supported */ }
+  }
+
+  // ===== Notification permission =====
+  function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }
+
+  // ===== Init =====
+  renderTasks();
+  setInterval(checkReminders, 10000); // har 10 second check
+  checkReminders();
+  requestNotificationPermission();
+
+  // Enter key se add
+  document.getElementById('taskName').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') addTask();
+  });
+</script>
+</body>
+</html>
